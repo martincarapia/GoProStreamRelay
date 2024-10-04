@@ -1,2 +1,16 @@
-# GoProStreamRelay
-Connect to as many gopros as defined and relays them off to a local RTMP server. The RTMP output of the GoPros can be used as a Media Source in OBS
+## Build
+Ensure that you have Python <3.12, >=3.9 installed.
+
+Run 
+```shell
+$ pip install open_gopro
+```
+
+Then 
+```shell
+$ git clone git@github.com:martincarapia/GoProStreamRelay.git
+$ cd GoProStreamRelay
+$ python gui.py
+```
+
+And Enjoy!
