@@ -52,10 +52,11 @@ class GoProApp(Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def add_gopro_block(self):
+        """Add a new GoPro block to the UI for entering GoPro details."""
         gopro_block = Frame(self.gopro_frame)
         gopro_block.pack(pady=5)
 
-        gopro_name_label = Label(gopro_block, text="GoPro Name:")
+        gopro_name_label = Label(gopro_block, text="Stream Key:")
         gopro_name_label.pack(side='left')
 
         gopro_name_entry = Entry(gopro_block)
@@ -67,14 +68,26 @@ class GoProApp(Tk):
         gopro_target_entry = Entry(gopro_block)
         gopro_target_entry.pack(side='left')
 
-        self.gopro_blocks.append((gopro_name_entry, gopro_target_entry))
+        remove_button = Button(gopro_block, text="X", command=lambda: self.remove_gopro_block(gopro_block))
+        remove_button.pack(side='left')
+
+        self.gopro_blocks.append((gopro_block, gopro_name_entry, gopro_target_entry))
+
+    def remove_gopro_block(self, gopro_block):
+        """Remove a GoPro block from the UI and the list of GoPro blocks."""
+        for block in self.gopro_blocks:
+            if block[0] == gopro_block:
+                self.gopro_blocks.remove(block)
+                break
+        gopro_block.destroy()
 
     def log(self, message):
+        """Log messages to the console output text widget."""
         self.console_output.insert("end", message + "\n")
         self.console_output.see("end")
 
     async def setup_gopro(self, name: str, gopro_target: str, ssid: str, password: str) -> None:
-        """ Set up the GoPros to stream."""
+        """Set up the GoPros to stream."""
         gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
         await gopro_obj.open(retries=100)
 
@@ -114,6 +127,7 @@ class GoProApp(Tk):
         self.log("Livestream is now streaming and should be available for viewing.")
 
     async def stop_live_stream(self, gopro_target: str) -> None:
+        """Stop the live stream for a specific GoPro."""
         gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
         await gopro_obj.open(retries=100)
 
@@ -122,12 +136,13 @@ class GoProApp(Tk):
         self.log("Livestream has been stopped.")
 
     async def main(self, stream: bool = True) -> None:
+        """Main function to handle starting or stopping streams for all GoPros."""
         ssid = self.ssid_entry.get()
         password = self.password_entry.get()
 
         # List of tasks for concurrent execution
         tasks = []
-        for gopro_name_entry, gopro_target_entry in self.gopro_blocks:
+        for _, gopro_name_entry, gopro_target_entry in self.gopro_blocks:
             name = gopro_name_entry.get()
             target = gopro_target_entry.get()
             if stream:
@@ -149,13 +164,12 @@ class GoProApp(Tk):
         loop.run_until_complete(self.main())
         loop.run_forever()  # Keep the loop running to avoid closing it prematurely
 
-    def stop_streaming_concurrent(self, run_forever: bool =True):
+    def stop_streaming_concurrent(self, run_forever: bool = True):
         """Stop the streaming in a new thread to avoid blocking the Tkinter event loop."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.main(stream=False))
         if run_forever:
-
             loop.run_forever()  # Keep the loop running to avoid closing it prematurely
         else:
             loop.close()
