@@ -5,7 +5,6 @@ from rich.console import Console
 from open_gopro import Params, WirelessGoPro, constants, proto
 from open_gopro.logger import setup_logging
 from typing import Any
-from open_gopro.util import ainput
 
 console = Console()  # rich console printer
 
@@ -40,8 +39,8 @@ class GoProApp(Tk):
         self.start_button = Button(self, text="Start Streaming", command=self.start_streaming)
         self.start_button.pack()
 
-        self.start_button = Button(self, text="Stop Streaming", command=self.stop_streaming)
-        self.start_button.pack()
+        self.stop_button = Button(self, text="Stop Streaming", command=self.stop_streaming)
+        self.stop_button.pack()
 
         self.console_output = Text(self, height=10)
         self.console_output.pack()
@@ -114,6 +113,7 @@ class GoProApp(Tk):
         await gopro_obj.open(retries=100)
 
         await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
+        self.log("Livestream has been stopped.")
 
     async def main(self, stream: bool = True) -> None:
         ssid = self.ssid_entry.get()
@@ -138,17 +138,21 @@ class GoProApp(Tk):
 
     def stream_gopros_concurrent(self):
         """Connect to all GoPros and start streaming concurrently."""
-        asyncio.run(self.main())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.main())
+        loop.run_forever()
     
     def stop_streaming_concurrent(self):
         """Stop the streaming in a new thread to avoid blocking the Tkinter event loop."""
-        asyncio.run(self.main(stream=False))
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.main(stream=False))
+        loop.run_forever()
 
     def stop_streaming(self):
         """Stop the streaming in a new thread to avoid blocking the Tkinter event loop."""
         threading.Thread(target=self.stop_streaming_concurrent).start()
-
-    
 
 if __name__ == "__main__":
     setup_logging(__name__, None)  # You can modify logging as needed
