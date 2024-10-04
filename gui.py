@@ -1,11 +1,12 @@
 import asyncio
 import threading
-from tkinter import Tk, Frame, Label, Entry, Button, Text
+from tkinter import Tk, Frame, Label, Entry, Button, Text, PhotoImage
 from rich.console import Console
 from open_gopro import Params, WirelessGoPro, constants, proto
 from open_gopro.logger import setup_logging
 from typing import Any
 import sys
+from pathlib import Path
 
 console = Console()  # rich console printer
 
@@ -14,6 +15,10 @@ class GoProApp(Tk):
         super().__init__()
         self.title("GoPro Streaming Setup")
         self.geometry("600x400")
+
+        # Set the window icon
+        self.icon = PhotoImage(file=Path("assets/myicon.png"))  # Replace with your icon file path
+        self.iconphoto(False, self.icon)
 
         # Create UI elements
         self.ssid_label = Label(self, text="SSID:")
