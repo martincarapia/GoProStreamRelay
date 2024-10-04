@@ -5,6 +5,7 @@ from rich.console import Console
 from open_gopro import Params, WirelessGoPro, constants, proto
 from open_gopro.logger import setup_logging
 from typing import Any
+import sys
 
 console = Console()  # rich console printer
 
@@ -47,6 +48,9 @@ class GoProApp(Tk):
 
         self.gopro_blocks = []
 
+        # Bind the window close event to the on_closing method
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
     def add_gopro_block(self):
         gopro_block = Frame(self.gopro_frame)
         gopro_block.pack(pady=5)
@@ -75,6 +79,7 @@ class GoProApp(Tk):
         await gopro_obj.open(retries=100)
 
         await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
+        await asyncio.sleep(2)
         await gopro_obj.ble_command.register_livestream_status(
             register=[proto.EnumRegisterLiveStreamStatus.REGISTER_LIVE_STREAM_STATUS_STATUS]
         )
@@ -113,6 +118,7 @@ class GoProApp(Tk):
         await gopro_obj.open(retries=100)
 
         await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
+        await gopro_obj.ble_command.release_network()
         self.log("Livestream has been stopped.")
 
     async def main(self, stream: bool = True) -> None:
@@ -141,18 +147,29 @@ class GoProApp(Tk):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.main())
-        loop.run_forever()
-    
-    def stop_streaming_concurrent(self):
+        loop.run_forever()  # Keep the loop running to avoid closing it prematurely
+
+    def stop_streaming_concurrent(self, run_forever: bool =True):
         """Stop the streaming in a new thread to avoid blocking the Tkinter event loop."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.main(stream=False))
-        loop.run_forever()
+        if run_forever:
+
+            loop.run_forever()  # Keep the loop running to avoid closing it prematurely
+        else:
+            loop.close()
 
     def stop_streaming(self):
         """Stop the streaming in a new thread to avoid blocking the Tkinter event loop."""
         threading.Thread(target=self.stop_streaming_concurrent).start()
+
+    def on_closing(self):
+        """Handle the window close event."""
+        if self.gopro_blocks:
+            self.stop_streaming_concurrent(run_forever=False)
+        sys.exit()
+
 
 if __name__ == "__main__":
     setup_logging(__name__, None)  # You can modify logging as needed
