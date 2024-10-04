@@ -1,6 +1,7 @@
 import asyncio
 import threading
-from tkinter import Tk, Frame, Label, Entry, Button, Text, PhotoImage
+import json
+from tkinter import Tk, Frame, Label, Entry, Button, Text, PhotoImage, filedialog
 from rich.console import Console
 from open_gopro import Params, WirelessGoPro, constants, proto
 from open_gopro.logger import setup_logging
@@ -53,15 +54,24 @@ class GoProApp(Tk):
         self.stop_button.grid(row=5, column=0, sticky='w')
         self.stop_button.grid_remove()  # Initially hide the stop button
 
+        self.save_button = Button(self, text="Save Config", command=self.save_config)
+        self.save_button.grid(row=6, column=0, sticky='w')
+
+        self.load_button = Button(self, text="Load Config", command=self.load_config)
+        self.load_button.grid(row=6, column=1, sticky='w')
+
         self.console_output = Text(self, height=10)
-        self.console_output.grid(row=6, column=0, columnspan=2, sticky='w')
+        self.console_output.grid(row=7, column=0, columnspan=2, sticky='w')
 
         self.gopro_blocks = []
 
         # Bind the window close event to the on_closing method
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-    def add_gopro_block(self):
+        # Automatically load the last saved configuration
+        self.load_last_config()
+
+    def add_gopro_block(self, name="", target=""):
         """Add a new GoPro block to the UI for entering GoPro details."""
         gopro_block = Frame(self.gopro_frame)
         gopro_block.pack(pady=5)
@@ -71,12 +81,14 @@ class GoProApp(Tk):
 
         gopro_name_entry = Entry(gopro_block)
         gopro_name_entry.pack(side='left')
+        gopro_name_entry.insert(0, name)
 
         gopro_target_label = Label(gopro_block, text="GoPro Target:")
         gopro_target_label.pack(side='left')
 
         gopro_target_entry = Entry(gopro_block)
         gopro_target_entry.pack(side='left')
+        gopro_target_entry.insert(0, target)
 
         remove_button = Button(gopro_block, text="X", command=lambda: self.remove_gopro_block(gopro_block))
         remove_button.pack(side='left')
@@ -206,6 +218,53 @@ class GoProApp(Tk):
         self.add_gopro_button.config(state='normal')  # Enable the add GoPro button
         for _, _, _, remove_button in self.gopro_blocks:
             remove_button.pack(side='left')  # Show the remove buttons
+
+    def save_config(self):
+        """Save the current configuration to a JSON file."""
+        config = {
+            'ssid': self.ssid_entry.get(),
+            'password': self.password_entry.get(),
+            'server_ip': self.server_ip_entry.get(),
+            'gopros': [
+                {'name': gopro_name_entry.get(), 'target': gopro_target_entry.get()}
+                for _, gopro_name_entry, gopro_target_entry, _ in self.gopro_blocks
+            ]
+        }
+        file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if file_path:
+            with open(file_path, 'w') as f:
+                json.dump(config, f)
+            self.log(f"Configuration saved to {file_path}")
+            # Save the path of the last configuration
+            with open('last_config.json', 'w') as f:
+                json.dump({'last_config': file_path}, f)
+
+    def load_config(self, file_path=None):
+        """Load a configuration from a JSON file."""
+        if not file_path:
+            file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        if file_path:
+            with open(file_path, 'r') as f:
+                config = json.load(f)
+            self.ssid_entry.delete(0, 'end')
+            self.ssid_entry.insert(0, config['ssid'])
+            self.password_entry.delete(0, 'end')
+            self.password_entry.insert(0, config['password'])
+            self.server_ip_entry.delete(0, 'end')
+            self.server_ip_entry.insert(0, config['server_ip'])
+            for gopro_block, _, _, _ in self.gopro_blocks:
+                gopro_block.destroy()
+            self.gopro_blocks.clear()
+            for gopro in config['gopros']:
+                self.add_gopro_block(gopro['name'], gopro['target'])
+            self.log(f"Configuration loaded from {file_path}")
+
+    def load_last_config(self):
+        """Load the last saved configuration if it exists."""
+        if Path('last_config.json').exists():
+            with open('last_config.json', 'r') as f:
+                last_config = json.load(f)
+                self.load_config(last_config['last_config'])
 
     def on_closing(self):
         """Handle the window close event."""
