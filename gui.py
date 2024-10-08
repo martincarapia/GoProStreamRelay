@@ -8,14 +8,14 @@ from open_gopro.logger import setup_logging
 from typing import Any
 import sys
 from pathlib import Path
-
+import requests
 console = Console()  # rich console printer
 
 class GoProApp(Tk):
     def __init__(self):
         super().__init__()
         self.title("GoPro Streaming Setup")
-        self.geometry("600x400")
+        self.geometry("700x500")
 
         # Set the window icon
         self.icon = PhotoImage(file=Path("assets/myicon.png"))  # Replace with your icon file path
@@ -119,8 +119,12 @@ class GoProApp(Tk):
 
     async def setup_gopro(self, name: str, gopro_target: str, ssid: str, password: str) -> None:
         """Set up the GoPros to stream."""
-        gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
-        await gopro_obj.open(retries=100)
+        try:
+            gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
+            await gopro_obj.open(retries=100)
+        except Exception as e:
+            self.log(f"Failed to connect to {gopro_target}: {e}")
+            return
 
         await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
         await asyncio.sleep(2)
@@ -128,7 +132,7 @@ class GoProApp(Tk):
             register=[proto.EnumRegisterLiveStreamStatus.REGISTER_LIVE_STREAM_STATUS_STATUS]
         )
 
-        self.log(f"Connecting to {ssid}...")
+        self.log(f"{gopro_target}: Connecting to {ssid}...")
         await gopro_obj.connect_to_access_point(ssid, password)
 
         # Start livestream
@@ -138,7 +142,7 @@ class GoProApp(Tk):
             if update.live_stream_status == proto.EnumLiveStreamStatus.LIVE_STREAM_STATE_READY:
                 livestream_is_ready.set()
 
-        self.log("Configuring livestream...")
+        self.log(f"{gopro_target}: Configuring livestream for...")
         gopro_obj.register_update(wait_for_livestream_start, constants.ActionId.LIVESTREAM_STATUS_NOTIF)
         await gopro_obj.ble_command.set_livestream_mode(
             url=f"rtmp://{self.server_ip_entry.get()}/live/{name}",
@@ -147,15 +151,15 @@ class GoProApp(Tk):
             starting_bitrate=5000,
         )
 
-        self.log("Waiting for livestream to be ready...\n")
+        self.log(f"{gopro_target}: Waiting for livestream to be ready...\n")
         await livestream_is_ready.wait()
 
         # Optional delay
         await asyncio.sleep(2)
 
-        self.log("Starting livestream")
+        self.log(f"{gopro_target} starting livestream")
         assert (await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.ENABLE)).ok
-        self.log("Livestream is now streaming and should be available for viewing.")
+        self.log(f"{gopro_target}: Livestream is now streaming and should be available for viewing.")
 
     async def stop_live_stream(self, gopro_target: str) -> None:
         """Stop the live stream for a specific GoPro."""
@@ -164,7 +168,7 @@ class GoProApp(Tk):
 
         await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
         await gopro_obj.ble_command.release_network()
-        self.log("Livestream has been stopped.")
+        self.log(f"{gopro_target}: Livestream has been stopped.")
 
     async def main(self, stream: bool = True) -> None:
         """Main function to handle starting or stopping streams for all GoPros."""
@@ -183,6 +187,38 @@ class GoProApp(Tk):
 
         # Run all tasks concurrently
         await asyncio.gather(*tasks)
+
+        # After all tasks are done running, request the server to run a specified python script
+        if stream:
+            # Collect input streams and output stream
+            input_streams = [f"rtmp://{self.server_ip_entry.get()}/live/{gopro_name_entry.get()}" for _, gopro_name_entry, _, _ in self.gopro_blocks]
+            output_stream = f"rtmp://{self.server_ip_entry.get()}/live/output"
+            # Start stream script with arguments
+            self.run_script_on_server('/Users/mieadmin/Documents/Code/LAB/StreamClient.py', 'start', input_streams, output_stream)
+        else:
+            # Stop stream script
+            self.run_script_on_server('/Users/mieadmin/Documents/Code/LAB/StreamClient.py', 'stop')
+
+    def run_script_on_server(self, script_path: str, action: str, input_streams=None, output_stream=None):
+        """Run a Python script on the server with optional arguments."""
+        server_url = self.server_ip_entry.get()
+        try:
+            # Construct the query parameters
+            query_params = f'script_path={script_path}&action={action}'
+            if input_streams:
+                for i, stream in enumerate(input_streams):
+                    query_params += f'&input{i}={stream}'
+            if output_stream:
+                query_params += f'&output={output_stream}'
+            
+            # Send the request to the server
+            response = requests.get(f'http://{server_url}:8080?{query_params}')
+            if response.status_code == 200:
+                self.log(f"Script output: {response.text}")
+            else:
+                self.log(f"Error: {response.status_code}\n{response.text}")
+        except Exception as e:
+            self.log(f"Failed to connect to server: {e}")
 
     def start_streaming(self):
         """Start the streaming in a new thread to avoid blocking the Tkinter event loop."""
