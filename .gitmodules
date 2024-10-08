@@ -1,0 +1,3 @@
+[submodule "DynamicStreamManager"]
+	path = DynamicStreamManager
+	url = git@github.com:martincarapia/DynamicStreamManager.git
