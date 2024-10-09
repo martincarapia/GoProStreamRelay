@@ -1,0 +1,13 @@
+# requirements.txt
+
+# Dependencies for raspberrypi.py
+# Python 3.11.X'
+RPi.GPIO
+luma.core
+luma.oled
+Pillow
+
+# For GUI.py
+rich
+open_gopro
+requests
