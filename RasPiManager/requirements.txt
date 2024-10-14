@@ -1,6 +1,7 @@
 # requirements.txt
 
 # Python 3.11.X'
-tk
+RPi.GPIO
 rich
 open_gopro
+smbus2
