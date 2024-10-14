@@ -1,22 +1,24 @@
 import asyncio
 import threading
 import json
-from tkinter import Tk, Frame, Label, Entry, Button, Text, PhotoImage, filedialog
-from rich.console import Console
-from open_gopro import Params, WirelessGoPro, constants, proto
-from open_gopro.logger import setup_logging
-from typing import Any
 import sys
 from pathlib import Path
-import requests
+from tkinter import Tk, Frame, Label, Entry, Button, Text, PhotoImage, filedialog
+from rich.console import Console
+from open_gopro.logger import setup_logging
+from gopro_manager import GoProManager
+
 console = Console()  # rich console printer
 
 class GoProApp(Tk):
+    # GUI Stuff
     def __init__(self):
         super().__init__()
+        self.mymanager = GoProManager(self.log)
         self.title("GoPro Streaming Setup")
         self.geometry("700x500")
-
+        self.gopro_blocks = []
+        
         # Set the window icon
         self.icon = PhotoImage(file=Path("assets/myicon.png"))  # Replace with your icon file path
         self.iconphoto(False, self.icon)
@@ -46,11 +48,11 @@ class GoProApp(Tk):
         self.add_gopro_button = Button(self, text="Add GoPro", command=self.add_gopro_block)
         self.add_gopro_button.grid(row=4, column=0, sticky='w')
 
-        self.start_button = Button(self, text="Start Streaming", command=self.start_streaming)
+        self.start_button = Button(self, text="Start Streaming", command=self.to_streaming)
         self.start_button.grid(row=5, column=0, sticky='w')
         self.start_button.config(state='disabled')  # Initially disable the start button
 
-        self.stop_button = Button(self, text="Stop Streaming", command=self.stop_streaming)
+        self.stop_button = Button(self, text="Stop Streaming", command=lambda: self.to_streaming(False))
         self.stop_button.grid(row=5, column=0, sticky='w')
         self.stop_button.grid_remove()  # Initially hide the stop button
 
@@ -62,8 +64,6 @@ class GoProApp(Tk):
 
         self.console_output = Text(self, height=10)
         self.console_output.grid(row=7, column=0, columnspan=2, sticky='w')
-
-        self.gopro_blocks = []
 
         # Bind the window close event to the on_closing method
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -112,149 +112,36 @@ class GoProApp(Tk):
         else:
             self.start_button.config(state='disabled')
 
-    def log(self, message):
-        """Log messages to the console output text widget."""
-        self.console_output.insert("end", message + "\n")
-        self.console_output.see("end")
-
-    async def setup_gopro(self, name: str, gopro_target: str, ssid: str, password: str) -> None:
-        """Set up the GoPros to stream."""
-        try:
-            gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
-            await gopro_obj.open(retries=100)
-        except Exception as e:
-            self.log(f"Failed to connect to {gopro_target}: {e}")
-            return
-
-        await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
-        await asyncio.sleep(2)
-        await gopro_obj.ble_command.register_livestream_status(
-            register=[proto.EnumRegisterLiveStreamStatus.REGISTER_LIVE_STREAM_STATUS_STATUS]
-        )
-
-        self.log(f"{gopro_target}: Connecting to {ssid}...")
-        await gopro_obj.connect_to_access_point(ssid, password)
-
-        # Start livestream
-        livestream_is_ready = asyncio.Event()
-
-        async def wait_for_livestream_start(_: Any, update: proto.NotifyLiveStreamStatus) -> None:
-            if update.live_stream_status == proto.EnumLiveStreamStatus.LIVE_STREAM_STATE_READY:
-                livestream_is_ready.set()
-
-        self.log(f"{gopro_target}: Configuring livestream for...")
-        gopro_obj.register_update(wait_for_livestream_start, constants.ActionId.LIVESTREAM_STATUS_NOTIF)
-        await gopro_obj.ble_command.set_livestream_mode(
-            url=f"rtmp://{self.server_ip_entry.get()}/live/{name}",
-            minimum_bitrate=800,
-            maximum_bitrate=8000,
-            starting_bitrate=5000,
-        )
-
-        self.log(f"{gopro_target}: Waiting for livestream to be ready...\n")
-        await livestream_is_ready.wait()
-
-        # Optional delay
-        await asyncio.sleep(2)
-
-        self.log(f"{gopro_target} starting livestream")
-        assert (await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.ENABLE)).ok
-        self.log(f"{gopro_target}: Livestream is now streaming and should be available for viewing.")
-
-    async def stop_live_stream(self, gopro_target: str) -> None:
-        """Stop the live stream for a specific GoPro."""
-        gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
-        await gopro_obj.open(retries=100)
-
-        await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
-        await gopro_obj.ble_command.release_network()
-        self.log(f"{gopro_target}: Livestream has been stopped.")
-
-    async def main(self, stream: bool = True) -> None:
-        """Main function to handle starting or stopping streams for all GoPros."""
-        ssid = self.ssid_entry.get()
-        password = self.password_entry.get()
-
-        # List of tasks for concurrent execution
-        tasks = []
-        for _, gopro_name_entry, gopro_target_entry, _ in self.gopro_blocks:
-            name = gopro_name_entry.get()
-            target = gopro_target_entry.get()
-            if stream:
-                tasks.append(self.setup_gopro(name, target, ssid, password))
-            else:
-                tasks.append(self.stop_live_stream(target))
-
-        # Run all tasks concurrently
-        await asyncio.gather(*tasks)
-
-        # After all tasks are done running, request the server to run a specified python script
-        if stream:
-            # Collect input streams and output stream
-            input_streams = [f"rtmp://{self.server_ip_entry.get()}/live/{gopro_name_entry.get()}" for _, gopro_name_entry, _, _ in self.gopro_blocks]
-            output_stream = f"rtmp://{self.server_ip_entry.get()}/live/output"
-            # Start stream script with arguments
-            self.run_script_on_server('/Users/mieadmin/Documents/Code/LAB/StreamClient.py', 'start', input_streams, output_stream)
-        else:
-            # Stop stream script
-            self.run_script_on_server('/Users/mieadmin/Documents/Code/LAB/StreamClient.py', 'stop')
-
-    def run_script_on_server(self, script_path: str, action: str, input_streams=None, output_stream=None):
-        """Run a Python script on the server with optional arguments."""
-        server_url = self.server_ip_entry.get()
-        try:
-            # Construct the query parameters
-            query_params = f'script_path={script_path}&action={action}'
-            if input_streams:
-                for i, stream in enumerate(input_streams):
-                    query_params += f'&input{i}={stream}'
-            if output_stream:
-                query_params += f'&output={output_stream}'
-            
-            # Send the request to the server
-            response = requests.get(f'http://{server_url}:8080?{query_params}')
-            if response.status_code == 200:
-                self.log(f"Script output: {response.text}")
-            else:
-                self.log(f"Error: {response.status_code}\n{response.text}")
-        except Exception as e:
-            self.log(f"Failed to connect to server: {e}")
-
-    def start_streaming(self):
-        """Start the streaming in a new thread to avoid blocking the Tkinter event loop."""
-        threading.Thread(target=self.stream_gopros_concurrent).start()
+    def hide_start_button(self):
         self.start_button.grid_remove()  # Hide the start button
         self.stop_button.grid()  # Show the stop button
         self.add_gopro_button.config(state='disabled')  # Disable the add GoPro button
         for _, _, _, remove_button in self.gopro_blocks:
             remove_button.pack_forget()  # Hide the remove buttons
 
-    def stream_gopros_concurrent(self):
-        """Connect to all GoPros and start streaming concurrently."""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.main())
-        loop.run_forever()  # Keep the loop running to avoid closing it prematurely
-
-    def stop_streaming_concurrent(self, run_forever: bool = True):
-        """Stop the streaming in a new thread to avoid blocking the Tkinter event loop."""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.main(stream=False))
-        if run_forever:
-            loop.run_forever()  # Keep the loop running to avoid closing it prematurely
-        else:
-            loop.close()
-
-    def stop_streaming(self):
-        """Stop the streaming in a new thread to avoid blocking the Tkinter event loop."""
-        threading.Thread(target=self.stop_streaming_concurrent).start()
+    def show_start_button(self):
         self.stop_button.grid_remove()  # Hide the stop button
         self.start_button.grid()  # Show the start button
         self.add_gopro_button.config(state='normal')  # Enable the add GoPro button
         for _, _, _, remove_button in self.gopro_blocks:
             remove_button.pack(side='left')  # Show the remove buttons
+    
+    # Streaming commands
+    def to_streaming(self, stream: bool = True):
+        """Start the streaming in a new thread to avoid blocking the Tkinter event loop."""
+        threading.Thread(target=lambda: self._concurrent_stream(stream)).start()
+    
+    def _concurrent_stream(self, do_i_stream: bool = True):
+        """Start or stop the streaming concurrently."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self.main(do_i_stream))
+        finally:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.close()    
 
+    # Config Commands
     def save_config(self):
         """Save the current configuration to a JSON file."""
         config = {
@@ -305,9 +192,62 @@ class GoProApp(Tk):
     def on_closing(self):
         """Handle the window close event."""
         if self.gopro_blocks:
-            self.stop_streaming_concurrent(run_forever=False)
+            self.to_streaming(False)
         sys.exit()
 
+    def log(self, message):
+        """Log messages to the console output text widget."""
+        self.console_output.insert("end", message + "\n")
+        self.console_output.see("end")
+
+    async def main(self, stream: bool = True) -> None:
+        """Main function to handle starting or stopping streams for all GoPros."""
+        ssid = self.ssid_entry.get()
+        password = self.password_entry.get()
+
+        # List of tasks for concurrent execution
+        tasks = []
+        for block in self.gopro_blocks:
+            if block is None:
+                self.log("Error: gopro_block is None")
+                continue
+            _, gopro_name_entry, gopro_target_entry, _ = block
+            if gopro_name_entry is None or gopro_target_entry is None:
+                self.log("Error: gopro_name_entry or gopro_target_entry is None")
+                continue
+            name = gopro_name_entry.get()
+            target = gopro_target_entry.get()
+            if stream:
+                self.hide_start_button()
+                self.log(f"Setting up GoPro: {name} with target: {target}")
+                tasks.append(self.mymanager.setup_gopro(name, target, ssid, password, self.server_ip_entry.get()))
+            else:
+                self.show_start_button()
+                self.log(f"Stopping live stream for GoPro: {target}")
+                tasks.append(self.mymanager.stop_live_stream(target))
+
+        # Run all tasks concurrently and handle exceptions
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Log any exceptions that occurred
+        for result in results:
+            if isinstance(result, Exception):
+                self.log(f"Task failed with exception: {result}")
+            else:
+                self.log(f"Task completed successfully: {result}")
+
+        # After all tasks are done running, request the server to run a specified python script
+        if stream:
+            # Collect input streams and output stream
+            input_streams = [f"rtmp://{self.server_ip_entry.get()}/live/{gopro_name_entry.get()}" for _, gopro_name_entry, _, _ in self.gopro_blocks]
+            output_stream = f"rtmp://{self.server_ip_entry.get()}/live/output"
+            # Start stream script with arguments
+            self.log(f"Starting stream script on server with input streams: {input_streams} and output stream: {output_stream}")
+            self.mymanager.run_script_on_server('/Users/mieadmin/Documents/Code/LAB/StreamClient.py', 'start', self.server_ip_entry.get(), input_streams, output_stream)
+        else:
+            # Stop stream script
+            self.log(f"Stopping stream script on server")
+            self.mymanager.run_script_on_server('/Users/mieadmin/Documents/Code/LAB/StreamClient.py', 'stop', self.server_ip_entry.get())
 
 if __name__ == "__main__":
     setup_logging(__name__, None)  # You can modify logging as needed
