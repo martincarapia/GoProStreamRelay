@@ -14,3 +14,5 @@ $ python gui.py
 ```
 
 And Enjoy!
+
+This is made possible due to [Medical Informatics Engineering](https://github.com/mieweb) for who I'm developing this for. 
