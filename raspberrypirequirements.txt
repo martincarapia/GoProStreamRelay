@@ -1,0 +1,6 @@
+
+# Dependencies for raspberrypi.py
+RPi.GPIO
+luma.core
+luma.oled
+Pillow
