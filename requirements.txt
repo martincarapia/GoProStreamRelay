@@ -2,6 +2,6 @@
 # Python Python <3.12, >=3.9
 # For GUI.py
 rich
-open_gopro
 requests
 pytest
+open_gopro==0.17.1
