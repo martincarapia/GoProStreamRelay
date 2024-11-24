@@ -11,8 +11,13 @@ from gopro_manager import GoProManager
 console = Console()  # rich console printer
 
 class GoProApp(Tk):
-    # GUI Stuff
+    """
+    A Tkinter-based GUI application for setting up GoPro streaming.
+    """
     def __init__(self):
+        """
+        Initialize the GoProApp GUI.
+        """
         super().__init__()
         self.mymanager = GoProManager(self.log)
         self.title("GoPro Streaming Setup")
@@ -71,8 +76,14 @@ class GoProApp(Tk):
         # Automatically load the last saved configuration
         self.load_last_config()
 
-    def add_gopro_block(self, name="", target=""):
-        """Add a new GoPro block to the UI for entering GoPro details."""
+    def add_gopro_block(self, name: str, target: str) -> None:
+        """
+        Add a new GoPro block to the UI for entering GoPro details.
+
+        :param name: The name of the GoPro stream.
+        :param target: The target GoPro device.
+        :return: None
+        """
         gopro_block = Frame(self.gopro_frame)
         gopro_block.pack(pady=5)
 
@@ -96,8 +107,13 @@ class GoProApp(Tk):
         self.gopro_blocks.append((gopro_block, gopro_name_entry, gopro_target_entry, remove_button))
         self.update_start_button_state()
 
-    def remove_gopro_block(self, gopro_block):
-        """Remove a GoPro block from the UI and the list of GoPro blocks."""
+    def remove_gopro_block(self, gopro_block: Frame) -> None:
+        """
+        Remove a GoPro block from the UI and the list of GoPro blocks.
+
+        :param gopro_block: The GoPro block to remove.
+        :return: None
+        """
         for block in self.gopro_blocks:
             if block[0] == gopro_block:
                 self.gopro_blocks.remove(block)
@@ -105,34 +121,57 @@ class GoProApp(Tk):
         gopro_block.destroy()
         self.update_start_button_state()
 
-    def update_start_button_state(self):
-        """Enable or disable the start button based on the number of GoPro blocks and input fields."""
+    def update_start_button_state(self) -> None:
+        """
+        Enable or disable the start button based on the number of GoPro blocks and input fields.
+
+        :return: None
+        """
         if self.gopro_blocks and self.ssid_entry.get() and self.password_entry.get() and self.server_ip_entry.get():
             self.start_button.config(state='normal')
         else:
             self.start_button.config(state='disabled')
 
-    def hide_start_button(self):
+    def hide_start_button(self) -> None:
+        """
+        Hide the start button and show the stop button.
+
+        :return: None
+        """
         self.start_button.grid_remove()  # Hide the start button
         self.stop_button.grid()  # Show the stop button
         self.add_gopro_button.config(state='disabled')  # Disable the add GoPro button
         for _, _, _, remove_button in self.gopro_blocks:
             remove_button.pack_forget()  # Hide the remove buttons
 
-    def show_start_button(self):
+    def show_start_button(self) -> None:
+        """
+        Show the start button and hide the stop button.
+
+        :return: None
+        """
         self.stop_button.grid_remove()  # Hide the stop button
         self.start_button.grid()  # Show the start button
         self.add_gopro_button.config(state='normal')  # Enable the add GoPro button
         for _, _, _, remove_button in self.gopro_blocks:
             remove_button.pack(side='left')  # Show the remove buttons
     
-    # Streaming commands
-    def to_streaming(self, stream: bool = True):
-        """Start the streaming in a new thread to avoid blocking the Tkinter event loop."""
+    def to_streaming(self, stream: bool = True) -> None:
+        """
+        Start the streaming in a new thread to avoid blocking the Tkinter event loop.
+
+        :param stream: Boolean indicating whether to start or stop streaming.
+        :return: None
+        """
         threading.Thread(target=lambda: self._concurrent_stream(stream)).start()
     
-    def _concurrent_stream(self, do_i_stream: bool = True):
-        """Start or stop the streaming concurrently."""
+    def _concurrent_stream(self, do_i_stream: bool = True) -> None:
+        """
+        Start or stop the streaming concurrently.
+
+        :param do_i_stream: Boolean indicating whether to start or stop streaming.
+        :return: None
+        """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
@@ -141,9 +180,12 @@ class GoProApp(Tk):
             loop.run_until_complete(loop.shutdown_asyncgens())
             loop.close()    
 
-    # Config Commands
-    def save_config(self):
-        """Save the current configuration to a JSON file."""
+    def save_config(self) -> None:
+        """
+        Save the current configuration to a JSON file.
+
+        :return: None
+        """
         config = {
             'ssid': self.ssid_entry.get(),
             'password': self.password_entry.get(),
@@ -162,8 +204,13 @@ class GoProApp(Tk):
             with open('last_config.json', 'w') as f:
                 json.dump({'last_config': file_path}, f)
 
-    def load_config(self, file_path=None):
-        """Load a configuration from a JSON file."""
+    def load_config(self, file_path: str = None) -> None:
+        """
+        Load a configuration from a JSON file.
+
+        :param file_path: The path to the configuration file.
+        :return: None
+        """
         if not file_path:
             file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
         if file_path:
@@ -182,26 +229,44 @@ class GoProApp(Tk):
                 self.add_gopro_block(gopro['name'], gopro['target'])
             self.log(f"Configuration loaded from {file_path}")
 
-    def load_last_config(self):
-        """Load the last saved configuration if it exists."""
+    def load_last_config(self) -> None:
+        """
+        Load the last saved configuration if it exists.
+
+        :return: None
+        """
         if Path('last_config.json').exists():
             with open('last_config.json', 'r') as f:
                 last_config = json.load(f)
                 self.load_config(last_config['last_config'])
 
-    def on_closing(self):
-        """Handle the window close event."""
+    def on_closing(self) -> None:
+        """
+        Handle the window close event.
+
+        :return: None
+        """
         if self.gopro_blocks:
             self.to_streaming(False)
         sys.exit()
 
-    def log(self, message):
-        """Log messages to the console output text widget."""
+    def log(self, message: str) -> None:
+        """
+        Log messages to the console output text widget.
+
+        :param message: The message to log.
+        :return: None
+        """
         self.console_output.insert("end", message + "\n")
         self.console_output.see("end")
 
     async def main(self, stream: bool = True) -> None:
-        """Main function to handle starting or stopping streams for all GoPros."""
+        """
+        Main function to handle starting or stopping streams for all GoPros.
+
+        :param stream: Boolean indicating whether to start or stop streaming.
+        :return: None
+        """
         ssid = self.ssid_entry.get()
         password = self.password_entry.get()
 
@@ -235,7 +300,7 @@ class GoProApp(Tk):
                 self.log(f"Task failed with exception: {result}")
             else:
                 self.log(f"Task completed successfully: {result}")
-
+        script_path = '/Users/mieadmin/Documents/Code/DynamicStreamManager/StreamClient.py'
         # After all tasks are done running, request the server to run a specified python script
         if stream:
             # Collect input streams and output stream
@@ -243,11 +308,11 @@ class GoProApp(Tk):
             output_stream = f"rtmp://{self.server_ip_entry.get()}/live/output"
             # Start stream script with arguments
             self.log(f"Starting stream script on server with input streams: {input_streams} and output stream: {output_stream}")
-            self.mymanager.run_script_on_server('/Users/mieadmin/Documents/Code/LAB/StreamClient.py', 'start', self.server_ip_entry.get(), input_streams, output_stream)
+            self.mymanager.run_script_on_server(script_path, 'start', self.server_ip_entry.get(), input_streams, output_stream)
         else:
             # Stop stream script
             self.log(f"Stopping stream script on server")
-            self.mymanager.run_script_on_server('/Users/mieadmin/Documents/Code/LAB/StreamClient.py', 'stop', self.server_ip_entry.get())
+            self.mymanager.run_script_on_server(script_path, 'stop', self.server_ip_entry.get())
 
 if __name__ == "__main__":
     setup_logging(__name__, None)  # You can modify logging as needed
