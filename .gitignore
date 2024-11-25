@@ -169,3 +169,6 @@ last_config.json
 
 # Builds
 *.dmg
+
+# VSCode
+.vscode/
