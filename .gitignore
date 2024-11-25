@@ -166,3 +166,6 @@ last_config.json
 
 # Mac OS X Finder and whatnot
 .DS_Store
+
+# Builds
+*.dmg

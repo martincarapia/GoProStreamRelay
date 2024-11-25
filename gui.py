@@ -2,6 +2,7 @@ import asyncio
 import threading
 import json
 import sys
+import os
 from pathlib import Path
 from tkinter import Tk, Frame, Label, Entry, Button, Text, PhotoImage, filedialog
 from rich.console import Console
@@ -23,10 +24,6 @@ class GoProApp(Tk):
         self.title("GoPro Streaming Setup")
         self.geometry("700x500")
         self.gopro_blocks = []
-        
-        # Set the window icon
-        self.icon = PhotoImage(file=Path("assets/myicon.png"))  # Replace with your icon file path
-        self.iconphoto(False, self.icon)
 
         # Create UI elements
         self.ssid_label = Label(self, text="SSID:")
@@ -76,7 +73,7 @@ class GoProApp(Tk):
         # Automatically load the last saved configuration
         self.load_last_config()
 
-    def add_gopro_block(self, name: str, target: str) -> None:
+    def add_gopro_block(self, name: str = "", target: str = "") -> None:
         """
         Add a new GoPro block to the UI for entering GoPro details.
 
@@ -298,8 +295,6 @@ class GoProApp(Tk):
         for result in results:
             if isinstance(result, Exception):
                 self.log(f"Task failed with exception: {result}")
-            else:
-                self.log(f"Task completed successfully: {result}")
         script_path = '/Users/mieadmin/Documents/Code/DynamicStreamManager/StreamClient.py'
         # After all tasks are done running, request the server to run a specified python script
         if stream:
