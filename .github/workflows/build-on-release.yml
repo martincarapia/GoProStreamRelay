@@ -1,0 +1,108 @@
+name: Build on Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build on Ubuntu
+      if: runner.os == 'Linux'
+      run: |
+        echo "Building on Ubuntu"
+        # Placeholder for Linux build
+        # pyinstaller buildspecfiles/linuxbuild.spec
+
+    - name: Build on macOS
+      if: runner.os == 'macOS'
+      run: |
+        echo "Building on macOS"
+        # Install create-dmg tool
+        brew install create-dmg
+        # Build the application
+        pyinstaller buildspecfiles/macbuild.spec
+        # Create the DMG
+        create-dmg \
+            --volname "GoProStreamRelay" \
+            --volicon "assets/myicon.icns" \
+            --background "assets/mielogo.jpeg" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "GoProStreamRelay.app" 200 190 \
+            --hide-extension "GoProStreamRelay.app" \
+            --app-drop-link 600 185 \
+            "dist/GoProStreamRelay.dmg" \
+            "dist"
+        # Delete all artifacts except .dmg
+        find dist -type f ! -name '*.dmg' -delete
+
+    - name: Build on Windows
+      if: runner.os == 'Windows'
+      run: |
+        echo "Building on Windows"
+        # Build the application
+        # pyinstaller buildspecfiles/windowsbuild.spec
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: dist/
+
+    - name: Upload macOS Release Asset
+      if: runner.os == 'macOS'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: dist/GoProStreamRelay.dmg
+        asset_name: GoProStreamRelay.dmg
+        asset_content_type: application/octet-stream
+
+    # - name: Upload Linux Release Asset
+    #   if: runner.os == 'Linux'
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   uses: actions/upload-release-asset@v1
+    #   with:
+    #     upload_url: ${{ github.event.release.upload_url }}
+    #     asset_path: dist/linux-build-artifact  # Replace with actual artifact name
+    #     asset_name: linux-build-artifact  # Replace with actual artifact name
+    #     asset_content_type: application/octet-stream
+
+    # - name: Upload Windows Release Asset
+    #   if: runner.os == 'Windows'
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   uses: actions/upload-release-asset@v1
+    #   with:
+    #     upload_url: ${{ github.event.release.upload_url }}
+    #     asset_path: dist/windows-build-artifact.exe  # Replace with actual artifact name
+    #     asset_name: windows-build-artifact.exe  # Replace with actual artifact name
+    #     asset_content_type: application/octet-stream
