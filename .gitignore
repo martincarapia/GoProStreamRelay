@@ -172,3 +172,6 @@ last_config.json
 
 # VSCode
 .vscode/
+
+# profile generation from pytest
+prof/

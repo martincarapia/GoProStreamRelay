@@ -4,5 +4,9 @@
 rich
 requests
 pytest
+pytest-asynci
+pytest-profiling 
+pytest-timeout 
+pytest-xdist
 pyinstaller
 open_gopro==0.17.1
