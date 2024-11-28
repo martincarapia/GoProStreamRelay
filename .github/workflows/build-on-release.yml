@@ -2,7 +2,7 @@ name: Build on Release
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 permissions:
   contents: write
@@ -66,12 +66,12 @@ jobs:
       run: |
         echo "Building on Windows"
         # Build the application
-        # pyinstaller buildspecfiles/windowsbuild.spec
+        pyinstaller buildspecfiles/winbuild.spec
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: build-artifacts
+        name: build-artifacts-${{ runner.os }}-${{ github.run_id }}
         path: dist/
 
     - name: Upload macOS Release Asset
@@ -96,13 +96,13 @@ jobs:
     #     asset_name: linux-build-artifact  # Replace with actual artifact name
     #     asset_content_type: application/octet-stream
 
-    # - name: Upload Windows Release Asset
-    #   if: runner.os == 'Windows'
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   uses: actions/upload-release-asset@v1
-    #   with:
-    #     upload_url: ${{ github.event.release.upload_url }}
-    #     asset_path: dist/windows-build-artifact.exe  # Replace with actual artifact name
-    #     asset_name: windows-build-artifact.exe  # Replace with actual artifact name
-    #     asset_content_type: application/octet-stream
+    - name: Upload Windows Release Asset
+      if: runner.os == 'Windows'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: dist/GoProStreamRelay.exe  # Replace with actual artifact name
+        asset_name: GoProStreamRelay.exe  # Replace with actual artifact name
+        asset_content_type: application/octet-stream

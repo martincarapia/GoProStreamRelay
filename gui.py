@@ -1,8 +1,13 @@
+import sys
+import os
+
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
 import asyncio
 import threading
 import json
-import sys
-import os
 from pathlib import Path
 from tkinter import Tk, Frame, Label, Entry, Button, Text, PhotoImage, filedialog
 from rich.console import Console
