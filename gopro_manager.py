@@ -1,7 +1,7 @@
 # gopro_manager.py
 import asyncio
 from open_gopro import Params, WirelessGoPro, constants, proto
-from typing import Any
+from typing import Any, List, Optional
 import requests
 
 class GoProManager:
@@ -66,10 +66,10 @@ class GoProManager:
             self.log(f"{gopro_target}: Starting livestream")
             await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.ENABLE)
             self.log(f"{gopro_target}: Livestream is now streaming and should be available for viewing.")
-            await gopro_obj.close()
-            return
         except Exception as e:
             self.log(f"Error during setup for {gopro_target}: {e}")
+        finally:
+            await gopro_obj.close()
 
     async def stop_live_stream(self, gopro_target: str) -> None:
         """
@@ -78,19 +78,21 @@ class GoProManager:
         :param gopro_target: The target GoPro device.
         :return: None
         """
-        gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
-        await gopro_obj.open(retries=100)
-
-        await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
-        await gopro_obj.close()
-        self.log(f"{gopro_target}: Livestream has been stopped.")
+        try:
+            gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
+            await gopro_obj.open(retries=100)
+            await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
+        except Exception as e:
+            self.log(f"Error stopping livestream for {gopro_target}: {e}")
+        finally:
+            await gopro_obj.close()
+            self.log(f"{gopro_target}: Livestream has been stopped.")
         return
 
-    def run_script_on_server(self, script_path: str, action: str, server_address: str, input_streams=None, output_stream=None):
+    def run_script_on_server(self, action: str, server_address: str, input_streams: Optional[List[str]] = None, output_stream: Optional[str] = None):
         """
         Run a Python script on the server with optional arguments.
 
-        :param script_path: The path to the script on the server.
         :param action: The action to perform.
         :param server_address: The address of the server.
         :param input_streams: Optional list of input streams.
@@ -99,10 +101,11 @@ class GoProManager:
         """
         try:
             # Construct the query parameters
-            query_params = f'script_path={script_path}&action={action}'
+            query_params = f'action={action}'
             if input_streams:
                 for i, stream in enumerate(input_streams):
-                    query_params += f'&input{i}={stream}'
+                    if stream:  # Validate non-empty stream
+                        query_params += f'&input{i}={stream}'
             if output_stream:
                 query_params += f'&output={output_stream}'
             
@@ -112,6 +115,5 @@ class GoProManager:
                 self.log(f"Script output: {response.text}")
             else:
                 self.log(f"Error: {response.status_code}\n{response.text}")
-            
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
             self.log(f"Failed to connect to server: {e}")
