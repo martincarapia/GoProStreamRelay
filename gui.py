@@ -9,7 +9,7 @@ import asyncio
 import threading
 import json
 from pathlib import Path
-from tkinter import Tk, Frame, Label, Entry, Button, Text, PhotoImage, filedialog
+from tkinter import Tk, Frame, Label, Entry, Button, Text, filedialog
 from rich.console import Console
 from open_gopro.logger import setup_logging
 from gopro_manager import GoProManager
@@ -230,6 +230,20 @@ class GoProApp(Tk):
             for gopro in config['gopros']:
                 self.add_gopro_block(gopro['name'], gopro['target'])
             self.log(f"Configuration loaded from {file_path}")
+            # Save the path of the last loaded configuration
+            self.last_config_path = file_path
+            with open('last_config_path.txt', 'w') as path_file:
+                path_file.write(file_path)
+
+    def get_base_path(self) -> str:
+        """
+        Get the base path of the executable or script.
+
+        :return: The base path as a string.
+        """
+        if hasattr(sys, '_MEIPASS'):
+            return sys._MEIPASS
+        return os.path.abspath(".")
 
     def load_last_config(self) -> None:
         """
@@ -237,10 +251,15 @@ class GoProApp(Tk):
 
         :return: None
         """
-        if Path('last_config.json').exists():
-            with open('last_config.json', 'r') as f:
-                last_config = json.load(f)
-                self.load_config(last_config['last_config'])
+        base_path = self.get_base_path()
+        last_config_path_file = os.path.join(base_path, 'last_config_path.txt')
+        if Path(last_config_path_file).exists():
+            with open(last_config_path_file, 'r') as path_file:
+                last_config_path = path_file.read().strip()
+                if Path(last_config_path).exists():
+                    self.load_config(last_config_path)
+                else:
+                    self.log(f"Last configuration file not found: {last_config_path}")
 
     def on_closing(self) -> None:
         """
@@ -250,6 +269,12 @@ class GoProApp(Tk):
         """
         if self.gopro_blocks:
             self.to_streaming(False)
+        if self.last_config_path:
+            base_path = self.get_base_path()
+            last_config_path_file = os.path.join(base_path, 'last_config_path.txt')
+            with open(last_config_path_file, 'w') as path_file:
+                path_file.write(self.last_config_path)
+        self.destroy()
         sys.exit()
 
     def log(self, message: str) -> None:
@@ -300,7 +325,6 @@ class GoProApp(Tk):
         for result in results:
             if isinstance(result, Exception):
                 self.log(f"Task failed with exception: {result}")
-        script_path = '/Users/mieadmin/Documents/Code/DynamicStreamManager/StreamClient.py'
         # After all tasks are done running, request the server to run a specified python script
         if stream:
             # Collect input streams and output stream
@@ -308,11 +332,11 @@ class GoProApp(Tk):
             output_stream = f"rtmp://{self.server_ip_entry.get()}/live/output"
             # Start stream script with arguments
             self.log(f"Starting stream script on server with input streams: {input_streams} and output stream: {output_stream}")
-            self.mymanager.run_script_on_server(script_path, 'start', self.server_ip_entry.get(), input_streams, output_stream)
+            self.mymanager.run_script_on_server(action='start', server_address=self.server_ip_entry.get(), input_streams=input_streams, output_stream=output_stream)
         else:
             # Stop stream script
             self.log(f"Stopping stream script on server")
-            self.mymanager.run_script_on_server(script_path, 'stop', self.server_ip_entry.get())
+            self.mymanager.run_script_on_server(action='stop', server_address=self.server_ip_entry.get())
 
 if __name__ == "__main__":
     setup_logging(__name__, None)  # You can modify logging as needed

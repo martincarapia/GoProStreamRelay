@@ -4,6 +4,7 @@ from gopro_manager import GoProManager
 import open_gopro
 import logging
 import asyncio
+import requests
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -48,15 +49,15 @@ def test_run_script_on_server_success(mock_requests_get, gopro_manager, log_call
     mock_response.text = "Script executed successfully"
     mock_requests_get.return_value = mock_response
 
-    gopro_manager.run_script_on_server("test_script.py", "run", "test_server")
+    gopro_manager.run_script_on_server("start", "test_server", ["input1", "input2"], "output")
 
-    mock_requests_get.assert_called_once_with('http://test_server:8080?script_path=test_script.py&action=run')
+    mock_requests_get.assert_called_once_with('http://test_server:8080?action=start&input0=input1&input1=input2&output=output')
     log_callback.assert_any_call("Script output: Script executed successfully")
 
 @patch('gopro_manager.requests.get')
 def test_run_script_on_server_exception(mock_requests_get, gopro_manager, log_callback):
-    mock_requests_get.side_effect = Exception("Connection error")
+    mock_requests_get.side_effect = requests.exceptions.RequestException("Connection error")
 
-    gopro_manager.run_script_on_server("test_script.py", "run", "test_server")
+    gopro_manager.run_script_on_server("start", "test_server", ["input1", "input2"], "output")
 
     log_callback.assert_any_call("Failed to connect to server: Connection error")

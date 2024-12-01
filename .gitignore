@@ -162,7 +162,7 @@ cython_debug/
 #.idea/
 
 # Application Generated Files
-last_config.json
+last_config_path.txt
 
 # Mac OS X Finder and whatnot
 .DS_Store
@@ -175,3 +175,6 @@ last_config.json
 
 # profile generation from pytest
 prof/
+
+# act config file
+.actrc
