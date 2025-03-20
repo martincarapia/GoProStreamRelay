@@ -199,6 +199,7 @@ class GoProApp(Tk):
             'ssid': self.ssid_entry.get(),
             'password': self.password_entry.get(),
             'server_ip': self.server_ip_entry.get(),
+            'save_to_gopro': self.save_to_gopro_var.get(),
             'gopros': [
                 {'name': gopro_name_entry.get(), 'target': gopro_target_entry.get()}
                 for _, gopro_name_entry, gopro_target_entry, _ in self.gopro_blocks
@@ -231,6 +232,9 @@ class GoProApp(Tk):
             self.password_entry.insert(0, config['password'])
             self.server_ip_entry.delete(0, 'end')
             self.server_ip_entry.insert(0, config['server_ip'])
+            self.save_to_gopro_var.delete(0, 'end')
+            self.save_to_gopro_var.insert(0, config['save_to_gopro'])
+
             for gopro_block, _, _, _ in self.gopro_blocks:
                 gopro_block.destroy()
             self.gopro_blocks.clear()
