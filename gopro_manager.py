@@ -13,7 +13,7 @@ class GoProManager:
         """
         self.log = log_callback
 
-    async def setup_gopro(self, name: str, gopro_target: str, ssid: str, password: str, server_address: str) -> None:
+    async def setup_gopro(self, name: str, gopro_target: str, ssid: str, password: str, server_address: str, encode: bool = False) -> None:
         """
         Set up the GoPro to stream.
 
@@ -22,6 +22,7 @@ class GoProManager:
         :param ssid: The SSID of the Wi-Fi network.
         :param password: The password of the Wi-Fi network.
         :param server_address: The address of the streaming server.
+        :param encode: Whether to save the stream to gopro sd card or not.
         :return: None
         """
         try:
@@ -55,7 +56,7 @@ class GoProManager:
                 minimum_bitrate=800,
                 maximum_bitrate=8000,
                 starting_bitrate=5000,
-                encode = False,
+                encode = encode,
             )
 
             self.log(f"{gopro_target}: Waiting for livestream to be ready...\n")

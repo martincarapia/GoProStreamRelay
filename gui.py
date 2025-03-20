@@ -9,7 +9,7 @@ import asyncio
 import threading
 import json
 from pathlib import Path
-from tkinter import Tk, Frame, Label, Entry, Button, Text, filedialog
+from tkinter import Tk, Frame, Label, Entry, Button, Text, filedialog, Checkbutton, BooleanVar
 from rich.console import Console
 from open_gopro.logger import setup_logging
 from gopro_manager import GoProManager
@@ -30,6 +30,9 @@ class GoProApp(Tk):
         self.geometry("700x500")
         self.gopro_blocks = []
 
+        # Add a BooleanVar to track the state of the "Save to GoPro" checkbox
+        self.save_to_gopro_var = BooleanVar(value=False)
+
         # Create UI elements
         self.ssid_label = Label(self, text="SSID:")
         self.ssid_label.grid(row=0, column=0, sticky='w')
@@ -49,28 +52,32 @@ class GoProApp(Tk):
         self.server_ip_entry.grid(row=2, column=1, sticky='w')
         self.server_ip_entry.bind("<KeyRelease>", lambda event: self.update_start_button_state())
 
+        # Add the "Save to GoPro" checkbox
+        self.save_to_gopro_checkbox = Checkbutton(self, text="Save to GoPro", variable=self.save_to_gopro_var)
+        self.save_to_gopro_checkbox.grid(row=3, column=0, sticky='w')
+
         self.gopro_frame = Frame(self)
-        self.gopro_frame.grid(row=3, column=0, columnspan=2, sticky='w')
+        self.gopro_frame.grid(row=4, column=0, columnspan=2, sticky='w')
 
         self.add_gopro_button = Button(self, text="Add GoPro", command=self.add_gopro_block)
-        self.add_gopro_button.grid(row=4, column=0, sticky='w')
+        self.add_gopro_button.grid(row=5, column=0, sticky='w')
 
         self.start_button = Button(self, text="Start Streaming", command=self.to_streaming)
-        self.start_button.grid(row=5, column=0, sticky='w')
+        self.start_button.grid(row=6, column=0, sticky='w')
         self.start_button.config(state='disabled')  # Initially disable the start button
 
         self.stop_button = Button(self, text="Stop Streaming", command=lambda: self.to_streaming(False))
-        self.stop_button.grid(row=5, column=0, sticky='w')
+        self.stop_button.grid(row=6, column=0, sticky='w')
         self.stop_button.grid_remove()  # Initially hide the stop button
 
         self.save_button = Button(self, text="Save Config", command=self.save_config)
-        self.save_button.grid(row=6, column=0, sticky='w')
+        self.save_button.grid(row=7, column=0, sticky='w')
 
         self.load_button = Button(self, text="Load Config", command=self.load_config)
-        self.load_button.grid(row=6, column=1, sticky='w')
+        self.load_button.grid(row=7, column=1, sticky='w')
 
         self.console_output = Text(self, height=10)
-        self.console_output.grid(row=7, column=0, columnspan=2, sticky='w')
+        self.console_output.grid(row=8, column=0, columnspan=2, sticky='w')
 
         # Bind the window close event to the on_closing method
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -296,6 +303,7 @@ class GoProApp(Tk):
         """
         ssid = self.ssid_entry.get()
         password = self.password_entry.get()
+        save_to_gopro = self.save_to_gopro_var.get()  # Get the checkbox value
 
         # List of tasks for concurrent execution
         tasks = []
@@ -312,7 +320,7 @@ class GoProApp(Tk):
             if stream:
                 self.hide_start_button()
                 self.log(f"Setting up GoPro: {name} with target: {target}")
-                tasks.append(self.mymanager.setup_gopro(name, target, ssid, password, self.server_ip_entry.get()))
+                tasks.append(self.mymanager.setup_gopro(name, target, ssid, password, self.server_ip_entry.get(), save_to_gopro))
             else:
                 self.show_start_button()
                 self.log(f"Stopping live stream for GoPro: {target}")
