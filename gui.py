@@ -232,8 +232,7 @@ class GoProApp(Tk):
             self.password_entry.insert(0, config['password'])
             self.server_ip_entry.delete(0, 'end')
             self.server_ip_entry.insert(0, config['server_ip'])
-            self.save_to_gopro_var.delete(0, 'end')
-            self.save_to_gopro_var.insert(0, config['save_to_gopro'])
+            self.save_to_gopro_var.set(config['save_to_gopro'])
 
             for gopro_block, _, _, _ in self.gopro_blocks:
                 gopro_block.destroy()
