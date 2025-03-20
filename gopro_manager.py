@@ -55,6 +55,7 @@ class GoProManager:
                 minimum_bitrate=800,
                 maximum_bitrate=8000,
                 starting_bitrate=5000,
+                encode = False,
             )
 
             self.log(f"{gopro_target}: Waiting for livestream to be ready...\n")
