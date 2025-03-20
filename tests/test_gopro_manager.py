@@ -1,3 +1,5 @@
+import open_gopro.constants
+import open_gopro.types
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from gopro_manager import GoProManager
@@ -38,7 +40,7 @@ async def test_stop_live_stream_success(mock_wireless_gopro, gopro_manager, log_
     await gopro_manager.stop_live_stream("test_target")
 
     mock_gopro_obj.open.assert_called_once_with(retries=100)
-    mock_gopro_obj.ble_command.set_shutter.assert_called_with(shutter=open_gopro.Params.Toggle.DISABLE)
+    mock_gopro_obj.ble_command.set_shutter.assert_called_with(shutter=open_gopro.constants.Toggle.DISABLE)
     mock_gopro_obj.close.assert_called_once()
     log_callback.assert_any_call("test_target: Livestream has been stopped.")
 

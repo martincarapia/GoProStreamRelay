@@ -29,7 +29,7 @@ Look in the dist folder and run the built executable and enjoy!
 ## Usage
 
 Follow this easy youtube video and following along with setup
-VIDEO HERE
+[VIDEO HERE](https://youtu.be/H1Sqn0Hyd3A)
 
 Install <https://github.com/martincarapia/DynamicStreamManager.git> on a server and get it running \
 Then install latest release of GoPro Stream Relay.

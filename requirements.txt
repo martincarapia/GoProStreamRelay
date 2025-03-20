@@ -1,5 +1,5 @@
 # requirements.txt
-# Python Python <3.12, >=3.9
+# Python Python <3.13, >=3.9
 # For GUI.py
 rich
 requests
@@ -9,4 +9,4 @@ pytest-profiling
 pytest-timeout 
 pytest-xdist
 pyinstaller
-open_gopro==0.17.1
+open_gopro==0.19.3

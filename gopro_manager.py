@@ -1,6 +1,6 @@
 # gopro_manager.py
 import asyncio
-from open_gopro import Params, WirelessGoPro, constants, proto
+from open_gopro import WirelessGoPro, constants, proto
 from typing import Any, List, Optional
 import requests
 
@@ -13,7 +13,7 @@ class GoProManager:
         """
         self.log = log_callback
 
-    async def setup_gopro(self, name: str, gopro_target: str, ssid: str, password: str, server_address: str) -> None:
+    async def setup_gopro(self, name: str, gopro_target: str, ssid: str, password: str, server_address: str, encode: bool = False) -> None:
         """
         Set up the GoPro to stream.
 
@@ -22,6 +22,7 @@ class GoProManager:
         :param ssid: The SSID of the Wi-Fi network.
         :param password: The password of the Wi-Fi network.
         :param server_address: The address of the streaming server.
+        :param encode: Whether to save the stream to gopro sd card or not.
         :return: None
         """
         try:
@@ -32,7 +33,7 @@ class GoProManager:
             return
 
         try:
-            await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
+            await gopro_obj.ble_command.set_shutter(shutter=constants.Toggle.DISABLE)
             await asyncio.sleep(2)
             await gopro_obj.ble_command.register_livestream_status(
                 register=[proto.EnumRegisterLiveStreamStatus.REGISTER_LIVE_STREAM_STATUS_STATUS]
@@ -55,6 +56,7 @@ class GoProManager:
                 minimum_bitrate=800,
                 maximum_bitrate=8000,
                 starting_bitrate=5000,
+                encode = encode,
             )
 
             self.log(f"{gopro_target}: Waiting for livestream to be ready...\n")
@@ -64,7 +66,7 @@ class GoProManager:
             await asyncio.sleep(2)
 
             self.log(f"{gopro_target}: Starting livestream")
-            await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.ENABLE)
+            await gopro_obj.ble_command.set_shutter(shutter=constants.Toggle.ENABLE)
             self.log(f"{gopro_target}: Livestream is now streaming and should be available for viewing.")
         except Exception as e:
             self.log(f"Error during setup for {gopro_target}: {e}")
@@ -81,7 +83,7 @@ class GoProManager:
         try:
             gopro_obj = WirelessGoPro(target=gopro_target, enable_wifi=False)
             await gopro_obj.open(retries=100)
-            await gopro_obj.ble_command.set_shutter(shutter=Params.Toggle.DISABLE)
+            await gopro_obj.ble_command.set_shutter(shutter=constants.Toggle.DISABLE)
         except Exception as e:
             self.log(f"Error stopping livestream for {gopro_target}: {e}")
         finally:
