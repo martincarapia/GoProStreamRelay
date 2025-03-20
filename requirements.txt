@@ -9,4 +9,4 @@ pytest-profiling
 pytest-timeout 
 pytest-xdist
 pyinstaller
-open_gopro==0.19.2
+open_gopro==0.19.3
