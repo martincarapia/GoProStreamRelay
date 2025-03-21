@@ -5,6 +5,7 @@ if sys.stdout is None:
     sys.stdout = open(os.devnull, "w")
 if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
+os.environ["LANG"] = "en_US.UTF-8"
 import asyncio
 import threading
 import json
